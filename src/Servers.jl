@@ -433,6 +433,9 @@ function handle_connection(f, c::Connection, listener, readtimeout, access_log)
                 if e isa ParseError
                     write(c, Response(e.code == :HEADER_SIZE_EXCEEDS_LIMIT ? 431 : 400, string(e.code)))
                 end
+                # HACK: using info just to make sure we don't try to get the stack trace,
+                # since that seems to be really slow
+                @info "HTTP: error in handle_connection 1" error=string(e)
                 msg = current_exceptions_to_string()
                 @debugv 1 "handle_connection startread error. $msg"
                 break
@@ -461,6 +464,7 @@ function handle_connection(f, c::Connection, listener, readtimeout, access_log)
                 # The remote can close the stream whenever it wants to, but there's nothing
                 # anyone can do about it on this side. No reason to log an error in that case.
                 level = e isa Base.IOError && !isopen(c) ? Logging.Debug : Logging.Error
+                @info "HTTP: error in handle_connection 2" error=string(e)
                 msg = current_exceptions_to_string()
                 @logmsgv 1 level "handle_connection handler error. $msg"
 
@@ -477,8 +481,9 @@ function handle_connection(f, c::Connection, listener, readtimeout, access_log)
                 end
             end
         end
-    catch
+    catch e
         # we should be catching everything inside the while loop, but just in case
+        @info "HTTP: error in handle_connection 3" error=string(e)
         msg = current_exceptions_to_string()
         @errorv 1 "error while handling connection. $msg"
     finally
